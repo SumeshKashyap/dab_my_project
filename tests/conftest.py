@@ -58,7 +58,10 @@ def load_fixture(spark: SparkSession):
 
 def _enable_fallback_compute():
     """Enable serverless compute if no compute is specified."""
-    conf = WorkspaceClient().config
+    try:
+        conf = WorkspaceClient().config
+    except ValueError:
+        return  # no credentials configured; unit tests that mock Spark can still run
     if conf.serverless_compute_id or conf.cluster_id or os.environ.get("SPARK_REMOTE"):
         return
 
@@ -88,7 +91,11 @@ def pytest_configure(config: pytest.Config):
         # Initialize Spark session eagerly, so it is available even when
         # SparkSession.builder.getOrCreate() is used. For DB Connect 15+,
         # we validate version compatibility with the remote cluster.
-        if hasattr(DatabricksSession.builder, "validateSession"):
-            DatabricksSession.builder.validateSession().getOrCreate()
-        else:
-            DatabricksSession.builder.getOrCreate()
+        # Skip when no credentials are present (e.g. running pure unit tests locally).
+        try:
+            if hasattr(DatabricksSession.builder, "validateSession"):
+                DatabricksSession.builder.validateSession().getOrCreate()
+            else:
+                DatabricksSession.builder.getOrCreate()
+        except Exception:
+            pass

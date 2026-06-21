@@ -1,26 +1,17 @@
 import argparse
 import logging
+from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType
-from databricks.sdk.runtime import spark
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Batch JSON ingestion via Spark Structured Streaming")
-    parser.add_argument("--catalog", required=True)
-    parser.add_argument("--schema", required=True)
-    parser.add_argument("--table_name", required=True)
-    parser.add_argument("--source_folder", required=True)
-    args = parser.parse_args()
+def infer_json_schema(spark: SparkSession, source_path: str) -> StructType:
+    """Infers schema from JSON files at source_path, stripping the _corrupt_record sentinel field.
 
-    source_path = f"/Volumes/{args.catalog}/test_schema/source_json_volume/{args.source_folder}/"
-    checkpoint_path = f"/Volumes/{args.catalog}/test_schema/source_json_volume/checkpoints/{args.table_name}"
-    target_table = f"{args.catalog}.{args.schema}.{args.table_name}"
-
-    logger.info("Ingestion started: source=%s, target=%s", source_path, target_table)
-
+    Raises ValueError if no valid JSON fields are found (empty folder or all files malformed).
+    """
     logger.info("Inferring schema from JSON files at %s", source_path)
     raw_schema = spark.read.option("multiLine", "true").json(source_path).schema
     # Spark adds _corrupt_record when it finds no valid JSON records (empty folder or all files malformed)
@@ -32,6 +23,15 @@ def main():
         )
     inferred_schema = StructType(clean_fields)
     logger.info("Schema inferred with %d field(s): %s", len(clean_fields), [f.name for f in clean_fields])
+    return inferred_schema
+
+
+def run_ingestion(spark: SparkSession, source_path: str, checkpoint_path: str, target_table: str) -> int:
+    """Runs batch JSON ingestion from source_path into target_table via Spark Structured Streaming.
+
+    Returns the total number of records written.
+    """
+    inferred_schema = infer_json_schema(spark, source_path)
 
     stream_df = spark.readStream.option("multiLine", "true").schema(inferred_schema).json(source_path)
     logger.info("Streaming read initialised with checkpoint at %s", checkpoint_path)
@@ -55,6 +55,25 @@ def main():
 
     query.awaitTermination()
     logger.info("Ingestion complete: %d total record(s) written to %s", total_records, target_table)
+    return total_records
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Batch JSON ingestion via Spark Structured Streaming")
+    parser.add_argument("--catalog", required=True)
+    parser.add_argument("--schema", required=True)
+    parser.add_argument("--table_name", required=True)
+    parser.add_argument("--source_folder", required=True)
+    args = parser.parse_args()
+
+    from databricks.sdk.runtime import spark  # noqa: PLC0415
+
+    source_path = f"/Volumes/{args.catalog}/test_schema/source_json_volume/{args.source_folder}/"
+    checkpoint_path = f"/Volumes/{args.catalog}/test_schema/source_json_volume/checkpoints/{args.table_name}"
+    target_table = f"{args.catalog}.{args.schema}.{args.table_name}"
+
+    logger.info("Ingestion started: source=%s, target=%s", source_path, target_table)
+    run_ingestion(spark, source_path, checkpoint_path, target_table)
 
 
 if __name__ == "__main__":
