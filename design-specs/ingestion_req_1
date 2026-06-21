@@ -1,0 +1,108 @@
+# Feature: Batch JSON Ingestion from Unity Catalog Volume using Spark Structured Streaming
+
+## Objective
+
+Enhance the existing Databricks Asset Bundle framework to ingest JSON files from a Unity Catalog Volume into a Delta table.
+
+## Requirements
+
+### Source
+
+* Create a Unity Catalog Volume:
+
+  * Schema: `test_schema`
+  * Volume: `source_json_volume`
+* Store JSON files in the volume under a configurable folder.
+
+Example path:
+
+```text
+/Volumes/<catalog>/test_schema/source_json_volume/customers/
+```
+
+### Ingestion Logic
+
+* Use Spark Structured Streaming (`readStream`).
+* Do NOT use:
+
+  * Auto Loader (`cloudFiles`)
+  * COPY INTO
+* Use `trigger(availableNow=True)` so the job behaves like a scheduled batch process.
+* Read all available files and terminate automatically.
+
+### Schema Handling
+
+* Infer schema from a sample JSON file.
+* Apply the inferred schema to the streaming DataFrame.
+
+### Target
+
+* Create/append to Delta table:
+
+```text
+<catalog>.<schema>.<table_name>
+```
+
+* If table does not exist, create it.
+* If table exists, append data.
+
+### Checkpointing
+
+Use Structured Streaming checkpointing to prevent reprocessing.
+
+Example:
+
+```text
+/Volumes/<catalog>/test_schema/source_json_volume/checkpoints/<table_name>
+```
+
+### Asset Bundle Changes
+
+Add:
+
+* Bundle variables for catalog, schema, table_name, source_folder.
+* New job: `json_ingestion_job`
+
+### Python Module
+
+Create:
+
+```text
+src/ingestion/<package_name>/json_ingestion.py
+```
+
+Entry point:
+
+```python
+def main():
+```
+
+Arguments:
+
+```text
+--catalog
+--schema
+--table_name
+--source_folder
+```
+
+### Processing Flow
+
+1. Read runtime parameters.
+2. Build volume source path.
+3. Infer JSON schema.
+4. Create streaming DataFrame.
+5. Write using `foreachBatch`.
+6. Save to Delta table.
+7. Use checkpointing.
+8. Wait for completion and exit.
+
+## Acceptance Criteria
+
+* Volume is created successfully.
+* Job deploys via Asset Bundles.
+* Job runs with runtime parameters.
+* Delta table is created automatically.
+* New files are ingested on subsequent runs.
+* Previously processed files are not reloaded.
+* No Auto Loader is used.

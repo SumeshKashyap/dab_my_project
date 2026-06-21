@@ -1,0 +1,37 @@
+resources:
+  jobs:
+    json_ingestion_job:
+      name: json_ingestion_job
+
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema
+          default: ${var.schema}
+        - name: table_name
+          default: ${var.table_name}
+        - name: source_folder
+          default: ${var.source_folder}
+
+      tasks:
+        - task_key: json_ingestion_task
+          python_wheel_task:
+            package_name: dab_my_project
+            entry_point: json_ingestion
+            parameters:
+              - "--catalog"
+              - "${var.catalog}"
+              - "--schema"
+              - "${var.schema}"
+              - "--table_name"
+              - "${var.table_name}"
+              - "--source_folder"
+              - "${var.source_folder}"
+          environment_key: default
+
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: "4"
+            dependencies:
+              - ../dist/*.whl

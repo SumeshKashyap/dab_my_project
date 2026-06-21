@@ -1,0 +1,36 @@
+[project]
+name = "dab_my_project"
+version = "0.0.1"
+authors = [{ name = "sumesh.kashyap90@gmail.com" }]
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    # Any dependencies for jobs and pipelines in this project can be added here
+    # See also https://docs.databricks.com/dev-tools/bundles/library-dependencies
+    #
+    # LIMITATION: for pipelines, dependencies are cached during development;
+    # add dependencies to the 'environment' section of your pipeline.yml file instead
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff",
+    "databricks-dlt",
+    "databricks-connect>=15.4,<15.5",
+    "ipykernel",
+]
+
+[project.scripts]
+main = "dab_my_project.main:main"
+json_ingestion = "dab_my_project_ingestion.json_ingestion:main"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src", "src/ingestion"]
+include = ["dab_my_project", "dab_my_project_ingestion", "dab_my_project_ingestion.*"]
+
+[tool.ruff]
+line-length = 120

@@ -1,0 +1,7 @@
+resources:
+  volumes:
+    source_json_volume:
+      catalog_name: ${var.catalog}
+      schema_name: test_schema
+      name: source_json_volume
+      volume_type: MANAGED
