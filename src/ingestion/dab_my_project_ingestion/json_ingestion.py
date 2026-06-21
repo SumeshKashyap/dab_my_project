@@ -1,6 +1,10 @@
 import argparse
+import logging
 from pyspark.sql.types import StructType
 from databricks.sdk.runtime import spark
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
 
 
 def main():
@@ -15,6 +19,9 @@ def main():
     checkpoint_path = f"/Volumes/{args.catalog}/test_schema/source_json_volume/checkpoints/{args.table_name}"
     target_table = f"{args.catalog}.{args.schema}.{args.table_name}"
 
+    logger.info("Ingestion started: source=%s, target=%s", source_path, target_table)
+
+    logger.info("Inferring schema from JSON files at %s", source_path)
     raw_schema = spark.read.option("multiLine", "true").json(source_path).schema
     # Spark adds _corrupt_record when it finds no valid JSON records (empty folder or all files malformed)
     clean_fields = [f for f in raw_schema.fields if f.name != "_corrupt_record"]
@@ -24,11 +31,20 @@ def main():
             "Ensure the source folder exists and contains at least one valid JSON file."
         )
     inferred_schema = StructType(clean_fields)
+    logger.info("Schema inferred with %d field(s): %s", len(clean_fields), [f.name for f in clean_fields])
 
     stream_df = spark.readStream.option("multiLine", "true").schema(inferred_schema).json(source_path)
+    logger.info("Streaming read initialised with checkpoint at %s", checkpoint_path)
+
+    total_records = 0
 
     def write_batch(batch_df, batch_id):
+        nonlocal total_records
+        record_count = batch_df.count()
+        total_records += record_count
+        logger.info("Batch %d: %d record(s) read from source", batch_id, record_count)
         batch_df.write.format("delta").mode("append").option("mergeSchema", "true").saveAsTable(target_table)
+        logger.info("Batch %d: write to %s completed successfully", batch_id, target_table)
 
     query = (
         stream_df.writeStream.foreachBatch(write_batch)
@@ -38,6 +54,7 @@ def main():
     )
 
     query.awaitTermination()
+    logger.info("Ingestion complete: %d total record(s) written to %s", total_records, target_table)
 
 
 if __name__ == "__main__":

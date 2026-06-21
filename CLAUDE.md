@@ -141,3 +141,22 @@ databricks bundle run json_ingestion_job
 ```
 databricks bundle run json_ingestion_job --params '{"table_name": "orders", "source_folder": "orders"}'
 ```
+
+## Compute Cluster
+
+### Compute for `json_ingestion_job`
+
+The ingestion job uses a dedicated job cluster defined in `resources/json_ingestion_job.job.yml`.
+
+**Cluster spec (`job_clusters` block):**
+- Node type: `Standard_D4ds_v5`
+- Runtime: Photon, Spark `17.3.x-scala2.13`
+- Availability: `ON_DEMAND_AZURE`
+- Autoscale: 1–3 workers
+
+### Switching to Serverless
+
+To switch to serverless compute, make these edits in `resources/json_ingestion_job.job.yml`:
+1. Remove the `job_clusters` block entirely
+2. On the task, replace `job_cluster_key: ingestion_cluster` with `environment_key: default`
+3. Add an `environments` block at the job level (commented out template is in the file)

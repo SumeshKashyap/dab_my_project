@@ -1,0 +1,34 @@
+# Feature: Configurable Compute for JSON Ingestion Job
+
+## Objective
+
+Enhance the existing Databricks Asset Bundle solution by adding compute configuration for the `json_ingestion_job`.
+
+## Requirements
+
+### Default Compute
+
+The job should use a dedicated job cluster by default.
+
+Cluster specification:
+
+```json
+{
+  "azure_attributes": {
+    "availability": "ON_DEMAND_AZURE"
+  },
+  "runtime_engine": "PHOTON",
+  "spark_version": "17.3.x-scala2.13",
+  "node_type_id": "Standard_D4ds_v5",
+  "is_single_node": false,
+  "autoscale": {
+    "min_workers": 1,
+    "max_workers": 3
+  }
+}
+```
+
+### The changes are in files:
+  - Add compute_type variable to databricks.yml
+  - Update resources/json_ingestion_job.job.yml with conditional cluster config
+

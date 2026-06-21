@@ -13,8 +13,31 @@ resources:
         - name: source_folder
           default: ${var.source_folder}
 
+      job_clusters:
+        - job_cluster_key: ingestion_cluster
+          new_cluster:
+            azure_attributes:
+              availability: ON_DEMAND_AZURE
+            runtime_engine: PHOTON
+            spark_version: "17.3.x-scala2.13"
+            node_type_id: Standard_D4ds_v5
+            autoscale:
+              min_workers: 1
+              max_workers: 3
+
       tasks:
         - task_key: json_ingestion_task
+          # To switch to serverless: remove job_cluster_key and libraries, replace with environment_key: default
+          # Also remove the job_clusters block above and add an environments block at the job level:
+          # environments:
+          #   - environment_key: default
+          #     spec:
+          #       environment_version: "4"
+          #       dependencies:
+          #         - ../dist/*.whl
+          job_cluster_key: ingestion_cluster
+          libraries:
+            - whl: ../dist/*.whl
           python_wheel_task:
             package_name: dab_my_project
             entry_point: json_ingestion
@@ -27,11 +50,3 @@ resources:
               - "${var.table_name}"
               - "--source_folder"
               - "${var.source_folder}"
-          environment_key: default
-
-      environments:
-        - environment_key: default
-          spec:
-            environment_version: "4"
-            dependencies:
-              - ../dist/*.whl
