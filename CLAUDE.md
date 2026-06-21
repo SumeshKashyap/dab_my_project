@@ -72,7 +72,7 @@ databricks bundle run dab_my_project_etl --select sample_trips_dab_my_project
 
 ## Architecture
 
-### Two Python packages in `src/`
+### Python packages in `src/`
 
 **`src/dab_my_project/`** — Shared Python library packaged as a `.whl`, used by the `python_wheel_task` in the job.
 - `main.py`: Entry point (`main` CLI script). Accepts `--catalog` and `--schema` args, sets the active catalog/schema, then calls business logic.
@@ -81,6 +81,23 @@ databricks bundle run dab_my_project_etl --select sample_trips_dab_my_project
 **`src/dab_my_project_etl/`** — DLT pipeline source, uploaded as files (not a wheel). Each file under `transformations/` is a DLT dataset definition.
 - `transformations/`: Each `.py` file defines one DLT table using the `@dp.table` decorator from `pyspark.pipelines`. Tables in this folder depend on each other by name (e.g., `sample_zones_dab_my_project` reads from `sample_trips_dab_my_project`).
 - `explorations/`: Ad-hoc Jupyter notebooks, not deployed.
+
+**`src/utils/`** — Shared utilities library, packaged in the wheel alongside other packages (registered in `pyproject.toml`). Import as `from utils.<module> import ...`.
+- `log_formatter.py`: ANSI colour-coded logging. Provides `ColorFormatter` (a `logging.Formatter` subclass that picks a colour per log level) and `get_color_logger(name)` (convenience function that attaches a `ColorFormatter` handler to a logger with `propagate=False` so Databricks-internal log messages remain uncoloured).
+
+  | Level | Colour |
+  |-------|--------|
+  | `DEBUG` | Grey |
+  | `INFO` | Blue |
+  | `WARNING` | Yellow |
+  | `ERROR` | Red |
+  | `CRITICAL` | Bold red |
+
+  Usage in any module:
+  ```python
+  from utils.log_formatter import get_color_logger
+  logger = get_color_logger(__name__)
+  ```
 
 ### Bundle configuration
 

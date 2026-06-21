@@ -2,9 +2,13 @@ import argparse
 import logging
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType
+from utils.log_formatter import get_color_logger
 
+# Root logger handles Databricks-internal messages (no colour).
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger(__name__)
+
+# Our logger emits colour-coded output (level-based); does not propagate to root.
+logger = get_color_logger(__name__)
 
 
 def infer_json_schema(spark: SparkSession, source_path: str) -> StructType:

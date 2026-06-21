@@ -30,7 +30,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src", "src/ingestion"]
-include = ["dab_my_project", "dab_my_project_ingestion", "dab_my_project_ingestion.*"]
+include = ["dab_my_project", "dab_my_project_ingestion", "dab_my_project_ingestion.*", "utils"]
 
 [tool.ruff]
 line-length = 120
